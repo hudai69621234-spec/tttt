@@ -1,6 +1,7 @@
 import os
 import re
 import uuid
+import requests
 from urllib.parse import quote, unquote
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
 from fastapi.responses import FileResponse, HTMLResponse
@@ -32,9 +33,19 @@ def remove_file(path: str):
         print(f"Error deleting file: {e}")
 
 def clean_and_resolve_url(url: str) -> str:
+    """শর্ট লিংক (share/r/...) এক্সপ্যান্ড করে আসল ফেসবুক লিংক বের করার ফাংশন"""
     try:
         url = unquote(url)
-        return re.sub(r'(\?|\&)(mibextid|rdid|share_id)=[^&]+', '', url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        # ফেসবুকের শর্ট লিংক থেকে আসল রিডাইরেক্ট লিংক ফেচ করা
+        res = requests.get(url, headers=headers, allow_redirects=True, timeout=10)
+        final_url = res.url if res.url else url
+        
+        # ট্র্যাকিং প্যারামিটার রিমুভ করা
+        return re.sub(r'(\?|\&)(mibextid|rdid|share_id)=[^&]+', '', final_url)
     except Exception:
         return url
 
@@ -71,13 +82,12 @@ def download_fb_info(url: str = Query(..., description="Facebook Video/Reel URL"
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(clean_url, download=False)
+            info = yt_dlp.YoutubeDL(ydl_opts).extract_info(clean_url, download=False)
             
             encoded_url = quote(clean_url, safe='')
             
-            # সার্ভার-সাইড ডাউনলোড এন্ডপয়েন্ট লিংক তৈরি করা হচ্ছে
-            download_720_url = f"http://127.0.0.1:8000/api/download-720p?url={encoded_url}"
-            download_1080_url = f"http://127.0.0.1:8000/api/render-1080p?url={encoded_url}"
+            download_720_url = f"https://tttt-cut3.onrender.com/api/download-720p?url={encoded_url}"
+            download_1080_url = f"https://tttt-cut3.onrender.com/api/render-1080p?url={encoded_url}"
 
             medias = [
                 {
